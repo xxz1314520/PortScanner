@@ -33,20 +33,32 @@ void MainWindow::on_startButton_clicked() {
         return;
     }
 
-    // 如果是 TCP 或 UDP 扫描，处理端口范围
+    // 如果是 TCP 或 UDP 扫描，处理端口范围或单个端口
     QString portRange = ui->portRangeLineEdit->text();
-    QStringList range = portRange.split("-");
-    if (range.size() != 2) {
-        ui->resultListWidget->addItem("端口范围格式错误，请输入如 80-100");
-        return;
-    }
 
-    int startPort = range[0].toInt();
-    int endPort = range[1].toInt();
+    int startPort, endPort;
+    if (portRange.contains("-")) {
+        // 解析端口范围
+        QStringList range = portRange.split("-");
+        if (range.size() != 2) {
+            ui->resultListWidget->addItem("端口范围格式错误，请输入如 80-100");
+            return;
+        }
 
-    if (startPort < 0 || endPort > 65535 || startPort > endPort) {
-        ui->resultListWidget->addItem("端口范围无效，请输入 0-65535 范围内的端口");
-        return;
+        startPort = range[0].toInt();
+        endPort = range[1].toInt();
+
+        if (startPort < 0 || endPort > 65535 || startPort > endPort) {
+            ui->resultListWidget->addItem("端口范围无效，请输入 0-65535 范围内的端口");
+            return;
+        }
+    } else {
+        // 解析单个端口
+        startPort = endPort = portRange.toInt();
+        if (startPort < 0 || startPort > 65535) {
+            ui->resultListWidget->addItem("端口无效，请输入 0-65535 范围内的端口");
+            return;
+        }
     }
 
     pendingTasks = endPort - startPort + 1;  // 初始化任务计数
