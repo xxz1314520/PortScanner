@@ -69,6 +69,11 @@
           <string>UDP</string>
          </property>
         </item>
+        <item>
+         <property name="text">
+          <string>TCP SYN</string>
+         </property>
+        </item>
        </widget>
       </item>
      </layout>
@@ -86,7 +91,7 @@
        <bool>true</bool>
       </property>
       <property name="focusPolicy">
-       <enum>Qt::FocusPolicy::StrongFocus</enum>
+       <enum>Qt::NoFocus</enum>
       </property>
      </widget>
     </item>

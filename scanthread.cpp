@@ -4,8 +4,11 @@
 #include <QProcess>
 #include <QOperatingSystemVersion>
 
-ScanThread::ScanThread(const QString& ip, int port, const QString& type)
-    : ip(ip), port(port), scanType(type) {}
+ScanThread::ScanThread(const QString& ip, int startPort, int endPort, const QString& type, int id)
+    : ip(ip), startPort(startPort),endPort(endPort), scanType(type) {
+    this->id = id;
+
+}
 
 void ScanThread::run() {
     try {
@@ -36,29 +39,60 @@ void ScanThread::run() {
                 result = QString("%1 is offline (timeout)").arg(ip);
             }
             emit icmpResult(result);  // 发出 ICMP 结果信号
-        } else if (scanType == "TCP") {
-            QString result;
-            QTcpSocket socket;
-            socket.connectToHost(ip, port);
-            if (socket.waitForConnected(1000)) {
-                result = QString("TCP Port %1 is open").arg(port);
-                socket.close();
-            } else {
-                result = QString("TCP Port %1 is closed").arg(port);
+        } else {
+            // 处理 TCP、UDP、TCP SYN 扫描，遍历分配的端口范围
+            for (int port = startPort; port <= endPort; ++port) {
+                QString result;
+
+                if (scanType == "TCP") {
+                    QTcpSocket socket;
+                    socket.connectToHost(ip, port);
+                    if (socket.waitForConnected(1000)) {
+                        result = "open";
+                        socket.close();
+                    } else {
+                        result = "close";
+                    }
+                    emit scanResult(port, result);
+                } else if (scanType == "UDP") {
+                    QUdpSocket socket;
+                    socket.writeDatagram("test", QHostAddress(ip), port);
+                    if (socket.waitForReadyRead(1000)) {
+                        result = "open";
+                    } else {
+                        result = "close";
+                    }
+                    emit scanResult(port, result);
+                } else if (scanType == "TCP SYN") {
+
+//                    QProcess process;
+//                    QStringList arguments;
+
+//                    // -sS 表示使用 SYN 扫描（半开放扫描），-p 指定端口
+//                    arguments << "-sS" << "-p" << QString::number(port) << targetIp;
+
+//                    process.start("nmap", arguments);
+//                    process.waitForFinished();
+
+//                    QString output = process.readAllStandardOutput();
+//                    qDebug() << output;
+
+//                    if (output == "") {
+//                        result = "open";
+//                    } else {
+//                        result = "close";
+//                    }
+//                    emit scanResult(port, result);
+                }
             }
-            emit scanResult(port, result);
-        } else if (scanType == "UDP") {
-            QString result;
-            QUdpSocket socket;
-            socket.writeDatagram("test", QHostAddress(ip), port);
-            if (socket.waitForReadyRead(1000)) {
-                result = QString("UDP Port %1 is open").arg(port);
-            } else {
-                result = QString("UDP Port %1 is closed or filtered").arg(port);
-            }
-            emit scanResult(port, result);
         }
+
     } catch (...) {
-        emit scanResult(port, QString("Error scanning port %1").arg(port));
+        emit scanResult(startPort, QString("Error scanning range %1-%2").arg(startPort).arg(endPort));
     }
 }
+
+
+
+
+

@@ -4,6 +4,8 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow), pendingTasks(0) {
     ui->setupUi(this);
+    thread_count = 0;
+
 }
 
 MainWindow::~MainWindow() {
@@ -12,7 +14,8 @@ MainWindow::~MainWindow() {
 
 void MainWindow::on_startButton_clicked() {
     ui->resultListWidget->clear();
-    scanResults.clear();  // 清空上次扫描的结果
+    //    scanResults.clear();  // 清空上次扫描的结果
+    scanResults2.clear();
 
     QString ip = ui->ipLineEdit->text();
     if (ip.isEmpty()) {
@@ -24,7 +27,7 @@ void MainWindow::on_startButton_clicked() {
 
     if (scanType == "ICMP") {
         // ICMP 扫描，不需要端口范围
-        ScanThread* thread = new ScanThread(ip, 0, scanType);
+        ScanThread* thread = new ScanThread(ip, 0,0, scanType,thread_count);
 
         connect(thread, &ScanThread::icmpResult, this, &MainWindow::handleICMPResult);
         connect(thread, &QThread::finished, thread, &QObject::deleteLater);
@@ -63,27 +66,66 @@ void MainWindow::on_startButton_clicked() {
 
     pendingTasks = endPort - startPort + 1;  // 初始化任务计数
 
-    for (int port = startPort; port <= endPort; ++port) {
-        ScanThread* thread = new ScanThread(ip, port, scanType);
+    int totalPorts = endPort - startPort + 1;
+    int portsPerThread = totalPorts / max_thread;    // 每个线程处理的端口数量
+    int extraPorts = totalPorts % max_thread;        // 多余的端口分配给前几个线程
 
-        connect(thread, &ScanThread::scanResult, this, &MainWindow::handleScanResult);
-        connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+    int currentStartPort = startPort;
 
-        thread->start();
+    for (int i = 0; i < max_thread; ++i) {
+        int currentEndPort = currentStartPort + portsPerThread - 1;
+
+        if (extraPorts > 0) {
+            currentEndPort++;
+            extraPorts--;
+        }
+
+        if (currentStartPort <= endPort) {
+            ScanThread* thread = new ScanThread(ip, currentStartPort, currentEndPort, scanType, thread_count++);
+            connect(thread, &ScanThread::scanResult, this, &MainWindow::handleScanResult);
+            connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+
+            thread->start();
+        }
+
+        currentStartPort = currentEndPort + 1;
     }
+
+
+
+//    for (int port = startPort; port <= endPort; ++port) {
+//        ScanThread* thread = new ScanThread(ip, port, scanType);
+
+//        connect(thread, &ScanThread::scanResult, this, &MainWindow::handleScanResult);
+//        connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+
+//        thread->start();
+//    }
 }
 
 // 处理 TCP 和 UDP 扫描结果
 void MainWindow::handleScanResult(int port, const QString& result) {
     // 将结果存入 QMap，以便按端口号排序
-    scanResults[port] = result;
+    //    scanResults[port] = result;
+    scanResults2[result].append(port);
     pendingTasks--;
 
     // 当所有扫描任务完成后，按端口顺序输出结果
     if (pendingTasks == 0) {
-        for (auto it = scanResults.begin(); it != scanResults.end(); ++it) {
-            ui->resultListWidget->addItem(it.value());
+        //        for (auto it = scanResults.begin(); it != scanResults.end(); ++it) {
+        //            ui->resultListWidget->addItem(it.value());
+        //        }
+        int i = 0;
+        if (scanResults2["open"].length() == 0){
+            ui->resultListWidget->addItem(QString("目标主机所扫描的所有端口都未开放！"));
         }
+        else{
+            ui->resultListWidget->addItem(QString("针对扫描范围，目标主机开放的端口:"));
+            for (i = 0; i < scanResults2["open"].length(); i++){
+                ui->resultListWidget->addItem(QString::number(scanResults2["open"][i]));
+            }
+        }
+
     }
 }
 
