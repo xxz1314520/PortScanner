@@ -6,37 +6,71 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     thread_count = 0;
 
+//    ScanThread::progress = 0;
+    ui->progress_bar->setMinimum(0);
+    ui->progress_bar->setMaximum(1);
+    ui->progress_bar->reset();
+    mutex = new QMutex();
+
 }
 
 MainWindow::~MainWindow() {
     delete ui;
 }
 
+QTimer *progress_timer;
+
+void MainWindow::task_allfinished(){
+    finishing_flag = true;
+    thread_count = 0;
+    //终止计时器
+    if(progress_timer->isActive() == true)
+    {
+        progress_timer->stop();
+
+    }
+
+    // 终止所有线程
+//    for (ScanThread* thread : activeThreads) {
+//        if (thread != nullptr && thread->isRunning()){
+//            thread->requestInterruption();
+//            if (!thread->wait(3000)) { // 等待3秒
+//                qDebug() << "线程未能在规定时间内退出，尝试强制终止";
+//                thread->terminate();
+//                thread->wait();
+//            }
+//        }
+    for (ScanThread* thread : activeThreads) {
+        if (thread != nullptr && thread->isRunning()){
+            thread->requestInterruption();
+            thread->wait();
+        }
+    }
+
+
+
+    activeThreads.clear();
+    ui->startButton->setText("开始扫描");
+    isScanning = false;
+    progressValue = 0;
+//    ScanThread::reset_progress_value();
+//    emit reset_progressValue();
+    ui->progress_bar->reset();
+    ui->horizontalSlider->setEnabled(true);
+    return;
+}
+
+void MainWindow::update_progressValue(){
+//    mutex->lock();
+//    QMutexLocker locker(mutex);
+    progressValue = progressValue + 1;
+//    mutex->unlock();
+}
 void MainWindow::on_startButton_clicked() {
-    ui->resultListWidget->clear();
-    //    scanResults.clear();  // 清空上次扫描的结果
-    scanResults2.clear();
-
-    QString ip = ui->ipLineEdit->text();
-    if (ip.isEmpty()) {
-        ui->resultListWidget->addItem("请输入有效的IP地址");
-        return;
-    }
-
-    QString scanType = ui->scanTypeComboBox->currentText();
-
-    if (scanType == "ICMP") {
-        // ICMP 扫描，不需要端口范围
-        ScanThread* thread = new ScanThread(ip, 0,0, scanType,thread_count);
-
-        connect(thread, &ScanThread::icmpResult, this, &MainWindow::handleICMPResult);
-        connect(thread, &QThread::finished, thread, &QObject::deleteLater);
-
-        thread->start();
-        return;
-    }
-
-    // 如果是 TCP 或 UDP 扫描，处理端口范围或单个端口
+    ui->horizontalSlider->setDisabled(true);
+    finishing_flag = false;
+    thread_count = 0;
+    progressValue = 0;
     QString portRange = ui->portRangeLineEdit->text();
 
     int startPort, endPort;
@@ -65,6 +99,66 @@ void MainWindow::on_startButton_clicked() {
     }
 
     pendingTasks = endPort - startPort + 1;  // 初始化任务计数
+    task_num = endPort - startPort + 1;
+    ui->progress_bar->setMaximum(task_num);
+    ui->progress_bar->setMinimum(0);
+
+    // 声明定时器
+    progress_timer = new QTimer(this);
+
+    ui->progress_bar->reset();
+
+    if (isScanning) {      //需要中途停止
+        task_allfinished();
+        return;
+    }
+    else{          //初始化一次任务
+        progress_timer->start(100);
+        // 绑定一个匿名函数
+        connect(progress_timer,&QTimer::timeout,[=]{
+            // 判断是否到达了进度条的最大值
+            if(progressValue != task_num)
+            {
+                ui->progress_bar->setValue(progressValue+1);
+
+            }
+            else
+            {
+                task_allfinished();
+                return;
+            }
+        });
+    }
+
+    ui->progress_bar->reset();
+
+    // 初始化扫描
+    isScanning = true;
+    ui->startButton->setText("终止扫描");
+    ui->resultListWidget->clear();
+    scanResults2.clear();
+
+    QString ip = ui->ipLineEdit->text();
+    if (ip.isEmpty()) {
+        ui->resultListWidget->addItem("请输入有效的IP地址");
+        return;
+    }
+
+    QString scanType = ui->scanTypeComboBox->currentText();
+
+    if (scanType == "ICMP") {
+        // ICMP 扫描，不需要端口范围
+        ScanThread* thread = new ScanThread(ip, 0,0, scanType,thread_count);
+        activeThreads.append(thread);
+
+        connect(thread, &ScanThread::icmpResult, this, &MainWindow::handleICMPResult,Qt::QueuedConnection);
+//        connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+//        connect(this, &MainWindow::reset_progressValue, thread, &ScanThread::rest_reset_progress_value);
+        connect(thread, &ScanThread::send_addprogressValue, this, &MainWindow::update_progressValue, Qt::QueuedConnection);
+        thread->start();
+        return;
+    }
+
 
     int totalPorts = endPort - startPort + 1;
     int portsPerThread = totalPorts / max_thread;    // 每个线程处理的端口数量
@@ -72,7 +166,7 @@ void MainWindow::on_startButton_clicked() {
 
     int currentStartPort = startPort;
 
-    for (int i = 0; i < max_thread; ++i) {
+    for (int i = 0; i < max_thread && i< totalPorts; ++i) {
         int currentEndPort = currentStartPort + portsPerThread - 1;
 
         if (extraPorts > 0) {
@@ -82,8 +176,12 @@ void MainWindow::on_startButton_clicked() {
 
         if (currentStartPort <= endPort) {
             ScanThread* thread = new ScanThread(ip, currentStartPort, currentEndPort, scanType, thread_count++);
-            connect(thread, &ScanThread::scanResult, this, &MainWindow::handleScanResult);
-            connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+            activeThreads.append(thread);
+            connect(thread, &ScanThread::scanResult, this, &MainWindow::handleScanResult,Qt::QueuedConnection);
+//            connect(thread, &QThread::finished, thread, &QObject::deleteLater);
+//            connect(thread, &ScanThread::removeMe, this, &MainWindow::removeThread);
+            connect(thread, &ScanThread::send_addprogressValue, this, &MainWindow::update_progressValue, Qt::QueuedConnection);
+//            connect(this, &MainWindow::reset_progressValue, thread, &ScanThread::rest_reset_progress_value);
 
             thread->start();
         }
@@ -91,45 +189,52 @@ void MainWindow::on_startButton_clicked() {
         currentStartPort = currentEndPort + 1;
     }
 
-
-
-//    for (int port = startPort; port <= endPort; ++port) {
-//        ScanThread* thread = new ScanThread(ip, port, scanType);
-
-//        connect(thread, &ScanThread::scanResult, this, &MainWindow::handleScanResult);
-//        connect(thread, &QThread::finished, thread, &QObject::deleteLater);
-
-//        thread->start();
-//    }
 }
+
+
+//void MainWindow::removeThread(ScanThread* one){
+//    if(!activeThreads.isEmpty()){
+//        //    activeThreads.erase(activeThreads.begin()+one->id);
+
+//        activeThreads[one->id] = nullptr;
+//    }
+
+//}
 
 // 处理 TCP 和 UDP 扫描结果
 void MainWindow::handleScanResult(int port, const QString& result) {
+    if (finishing_flag){
+        return;
+    }
     // 将结果存入 QMap，以便按端口号排序
     //    scanResults[port] = result;
-    scanResults2[result].append(port);
-    pendingTasks--;
+//    scanResults2[result].append(port);
 
-    // 当所有扫描任务完成后，按端口顺序输出结果
-    if (pendingTasks == 0) {
-        //        for (auto it = scanResults.begin(); it != scanResults.end(); ++it) {
-        //            ui->resultListWidget->addItem(it.value());
-        //        }
-        int i = 0;
-        if (scanResults2["open"].length() == 0){
-            ui->resultListWidget->addItem(QString("目标主机所扫描的所有端口都未开放！"));
-        }
-        else{
-            ui->resultListWidget->addItem(QString("针对扫描范围，目标主机开放的端口:"));
-            for (i = 0; i < scanResults2["open"].length(); i++){
-                ui->resultListWidget->addItem(QString::number(scanResults2["open"][i]));
-            }
-        }
-
+    if (pendingTasks == task_num){
+        ui->resultListWidget->addItem(QString("针对扫描范围，目标主机开放的端口:"));
     }
+    if(result == "open"){
+        result_isnull = false;
+        ui->resultListWidget->addItem(QString::number(port));
+    }
+    pendingTasks--;
+    if (pendingTasks == 0 && result_isnull){
+        ui->resultListWidget->addItem(QString("无"));
+    }
+
+
+
 }
 
 // 处理 ICMP 扫描结果，直接显示
 void MainWindow::handleICMPResult(const QString& result) {
     ui->resultListWidget->addItem(result);
+    task_allfinished();
 }
+
+void MainWindow::on_horizontalSlider_valueChanged(int value)
+{
+    max_thread = ui->horizontalSlider->value();
+    ui->thread_num_label->setText(QString::number(ui->horizontalSlider->value()));
+}
+
