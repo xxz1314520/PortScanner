@@ -30,16 +30,6 @@ void MainWindow::task_allfinished(){
 
     }
 
-    // 终止所有线程
-//    for (ScanThread* thread : activeThreads) {
-//        if (thread != nullptr && thread->isRunning()){
-//            thread->requestInterruption();
-//            if (!thread->wait(3000)) { // 等待3秒
-//                qDebug() << "线程未能在规定时间内退出，尝试强制终止";
-//                thread->terminate();
-//                thread->wait();
-//            }
-//        }
     for (ScanThread* thread : activeThreads) {
         if (thread != nullptr && thread->isRunning()){
             thread->requestInterruption();
@@ -53,18 +43,16 @@ void MainWindow::task_allfinished(){
     ui->startButton->setText("开始扫描");
     isScanning = false;
     progressValue = 0;
-//    ScanThread::reset_progress_value();
-//    emit reset_progressValue();
+
     ui->progress_bar->reset();
     ui->horizontalSlider->setEnabled(true);
     return;
 }
 
 void MainWindow::update_progressValue(){
-//    mutex->lock();
-//    QMutexLocker locker(mutex);
+
     progressValue = progressValue + 1;
-//    mutex->unlock();
+
 }
 void MainWindow::on_startButton_clicked() {
     ui->horizontalSlider->setDisabled(true);
@@ -152,8 +140,6 @@ void MainWindow::on_startButton_clicked() {
         activeThreads.append(thread);
 
         connect(thread, &ScanThread::icmpResult, this, &MainWindow::handleICMPResult,Qt::QueuedConnection);
-//        connect(thread, &QThread::finished, thread, &QObject::deleteLater);
-//        connect(this, &MainWindow::reset_progressValue, thread, &ScanThread::rest_reset_progress_value);
         connect(thread, &ScanThread::send_addprogressValue, this, &MainWindow::update_progressValue, Qt::QueuedConnection);
         thread->start();
         return;
@@ -178,10 +164,7 @@ void MainWindow::on_startButton_clicked() {
             ScanThread* thread = new ScanThread(ip, currentStartPort, currentEndPort, scanType, thread_count++);
             activeThreads.append(thread);
             connect(thread, &ScanThread::scanResult, this, &MainWindow::handleScanResult,Qt::QueuedConnection);
-//            connect(thread, &QThread::finished, thread, &QObject::deleteLater);
-//            connect(thread, &ScanThread::removeMe, this, &MainWindow::removeThread);
             connect(thread, &ScanThread::send_addprogressValue, this, &MainWindow::update_progressValue, Qt::QueuedConnection);
-//            connect(this, &MainWindow::reset_progressValue, thread, &ScanThread::rest_reset_progress_value);
 
             thread->start();
         }
@@ -190,16 +173,6 @@ void MainWindow::on_startButton_clicked() {
     }
 
 }
-
-
-//void MainWindow::removeThread(ScanThread* one){
-//    if(!activeThreads.isEmpty()){
-//        //    activeThreads.erase(activeThreads.begin()+one->id);
-
-//        activeThreads[one->id] = nullptr;
-//    }
-
-//}
 
 // 处理 TCP 和 UDP 扫描结果
 void MainWindow::handleScanResult(int port, const QString& result) {

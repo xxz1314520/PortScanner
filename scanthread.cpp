@@ -4,25 +4,6 @@
 #include <QProcess>
 #include <QOperatingSystemVersion>
 
-//void ScanThread::setValue(int newValue) {
-//    QMutexLocker locker(&mutex); // 获取锁
-
-//    // 等待条件满足
-//    while (!keyAvailable) {
-//        waitCondition.wait(&mutex);
-//    }
-
-//    progressValue = newValue; // 修改变量
-//}
-
-//void ScanThread::setKeyAvailable(bool available) {
-//    QMutexLocker locker(&mutex); // 获取锁
-//    keyAvailable = available;
-//    if (available) {
-//        waitCondition.wakeAll(); // 唤醒所有等待的线程
-//    }
-//}
-
 
 ScanThread::ScanThread(const QString& ip, int startPort, int endPort, const QString& type, int id)
     : ip(ip), startPort(startPort),endPort(endPort), scanType(type) {
@@ -30,9 +11,6 @@ ScanThread::ScanThread(const QString& ip, int startPort, int endPort, const QStr
 
 }
 
-//void ScanThread::terminate() {
-//    isTerminated = true;
-//}
 
 void ScanThread::run() {
     // 执行任务
@@ -68,13 +46,6 @@ void ScanThread::run() {
         } else {
             // 处理 TCP、UDP、TCP SYN 扫描，遍历分配的端口范围
             for (int port = startPort; port <= endPort && !QThread::currentThread()->isInterruptionRequested(); ++port) {
-                //                if (need_reset_progress_value){
-                ////                    setValue(0);
-                //                    need_reset_progress_value = false;
-                //                }
-                //                setKeyAvailable(true);
-                //                setValue(progressValue+1);
-
                 QString result;
 
                 if (scanType == "TCP") {

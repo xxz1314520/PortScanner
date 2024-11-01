@@ -27,14 +27,13 @@ private slots:
     void on_startButton_clicked();
     void handleScanResult(int port, const QString& result);
     void handleICMPResult(const QString& result);
-//    void removeThread(ScanThread* one);
+
 
     void update_progressValue();
 
     void on_horizontalSlider_valueChanged(int value);
 
-signals:
-//    void reset_progressValue();
+
 
 private:
     Ui::MainWindow *ui;

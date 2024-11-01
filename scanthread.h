@@ -20,25 +20,15 @@ class ScanThread : public QThread {
 
 public:
     ScanThread(const QString& ip, int startPort, int endPort, const QString& type,int id);
-//    void sendSynPacket(pcap_t* handle, const char* src_ip, const char* dst_ip, int dst_port);
 
-//    ~ScanThread(){
-//        progressValue--;
-//    }
-//    volatile bool isTerminated = false;
-//    void terminate();
     int id;
     bool need_reset_progress_value = false;
-//    void static reset_progress_value(){
-//        progressValue = 0;
-//    }
+
+
     void setValue(int newValue);
     void setKeyAvailable(bool available);
 public slots:
-//    void rest_reset_progress_value()
-//    {
-//        setValue(0);
-//    }
+
 
 signals:
     void scanResult(int port, const QString& result);
