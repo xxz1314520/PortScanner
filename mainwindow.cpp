@@ -10,7 +10,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->progress_bar->setMinimum(0);
     ui->progress_bar->setMaximum(1);
     ui->progress_bar->reset();
-    mutex = new QMutex();
+
 
 }
 
@@ -108,7 +108,6 @@ void MainWindow::on_startButton_clicked() {
             if(progressValue != task_num)
             {
                 ui->progress_bar->setValue(progressValue+1);
-
             }
             else
             {
@@ -149,9 +148,9 @@ void MainWindow::on_startButton_clicked() {
     int totalPorts = endPort - startPort + 1;
     int portsPerThread = totalPorts / max_thread;    // 每个线程处理的端口数量
     int extraPorts = totalPorts % max_thread;        // 多余的端口分配给前几个线程
-
     int currentStartPort = startPort;
 
+    //为每个线程分配端口
     for (int i = 0; i < max_thread && i< totalPorts; ++i) {
         int currentEndPort = currentStartPort + portsPerThread - 1;
 
@@ -195,8 +194,6 @@ void MainWindow::handleScanResult(int port, const QString& result) {
         ui->resultListWidget->addItem(QString("无"));
     }
 
-
-
 }
 
 // 处理 ICMP 扫描结果，直接显示
@@ -205,7 +202,8 @@ void MainWindow::handleICMPResult(const QString& result) {
     task_allfinished();
 }
 
-void MainWindow::on_horizontalSlider_valueChanged(int value)
+//线程选择
+void MainWindow::on_horizontalSlider_valueChanged()
 {
     max_thread = ui->horizontalSlider->value();
     ui->thread_num_label->setText(QString::number(ui->horizontalSlider->value()));

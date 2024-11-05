@@ -71,24 +71,6 @@ void ScanThread::run() {
                     emit send_addprogressValue();
                 } else if (scanType == "TCP SYN") {
 
-                    //                    QProcess process;
-                    //                    QStringList arguments;
-
-                    //                    // -sS 表示使用 SYN 扫描（半开放扫描），-p 指定端口
-                    //                    arguments << "-sS" << "-p" << QString::number(port) << targetIp;
-
-                    //                    process.start("nmap", arguments);
-                    //                    process.waitForFinished();
-
-                    //                    QString output = process.readAllStandardOutput();
-                    //                    qDebug() << output;
-
-                    //                    if (output == "") {
-                    //                        result = "open";
-                    //                    } else {
-                    //                        result = "close";
-                    //                    }
-                    //                    emit scanResult(port, result);
                 }
             }
 
